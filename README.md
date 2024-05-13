@@ -1,12 +1,18 @@
-## ERC-6900 Account Plugin
+## ERC-6900 Sample Plugins
 
-This is a basic example of an ERC-6900 compatible plugin called CounterPlugin, built in Foundry. It has one function that can be called through a user operation, called `increment`. In `/src` you will find this plugin, documented so you can understand how it works in detail.
+This repo hosts sample plugins built on ERC-6900, along with tests that make use of these plugins and the the ERC-6900 [reference implementation](https://github.com/erc6900/reference-implementation).
 
-You will also find a basic test in `/test` which will show this counter plugin working. Here you'll see how to setup the modular account, install the plugins and send a user operation specifying the intent to increment the count. Use `forge test` to run these tests.
+These plugins are inteded to be demonstrations of the capabilities of modular accounts and plugins. They are not auditted unless otherwise stated, and must not be used in production environments.
 
-Also included is a helper contract for tests call `AccountTestBase`, which handles the process of setting up the EntryPoint and a testing account. If you're writing your own tests for a custom plugin, you can use this test base to simplify the setup.
+All plugins contributed here are under the GPL v3 license, see the LICENSE file for more information.
 
-Feel free to modify the plugin and tests to challenge your understanding of ERC-6900 plugins, or use this to start building your own plugin! Click "Use this template" above to create your own plugin.
+## Plugins
+
+### Modular Session Key Plugin
+
+Originally contributed by [@sm-stack](https://github.com/sm-stack) and Decipher in [this PR](https://github.com/erc6900/reference-implementation/pull/22) to the reference implementation.
+
+The modular session key plugin makes use of the permissions capabilities of ERC-6900 to show how access controls may be implemented over secondary signing keys.
 
 ## Foundry Documentation
 
