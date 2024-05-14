@@ -2,7 +2,7 @@
 
 This repo hosts sample plugins built on ERC-6900, along with tests that make use of these plugins and the the ERC-6900 [reference implementation](https://github.com/erc6900/reference-implementation).
 
-These plugins are inteded to be demonstrations of the capabilities of modular accounts and plugins. They are not auditted unless otherwise stated, and must not be used in production environments.
+These plugins are intended to be demonstrations of the capabilities of modular accounts and plugins. They are not audited unless otherwise stated, and must not be used in production environments.
 
 All plugins contributed here are under the GPL v3 license, see the LICENSE file for more information.
 
