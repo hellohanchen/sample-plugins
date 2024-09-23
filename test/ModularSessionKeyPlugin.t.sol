@@ -16,10 +16,10 @@ import {MSCAFactoryFixture} from "erc6900/reference-implementation/test/mocks/MS
 import {FunctionReference, FunctionReferenceLib} from "erc6900/reference-implementation/src/helpers/FunctionReferenceLib.sol";
 import {IPluginManager} from "modular-account-libs/interfaces/IPluginManager.sol";
 
-import {ModularSessionKeyPlugin} from "../src/plugins/ModularSessionKeyPlugin.sol";
-import {IModularSessionKeyPlugin} from "../src/plugins/interfaces/ISessionKeyPlugin.sol";
-import {TokenSessionKeyPlugin} from "../src/plugins/TokenSessionKeyPlugin.sol";
-import {ITokenSessionKeyPlugin} from "../src/plugins/interfaces/ITokenSessionKeyPlugin.sol";
+import {ModularSessionKeyPlugin} from "../src/modular-session-key/ModularSessionKeyPlugin.sol";
+import {IModularSessionKeyPlugin} from "../src/modular-session-key/interfaces/ISessionKeyPlugin.sol";
+import {TokenSessionKeyPlugin} from "../src/modular-session-key/TokenSessionKeyPlugin.sol";
+import {ITokenSessionKeyPlugin} from "../src/modular-session-key/interfaces/ITokenSessionKeyPlugin.sol";
 
 import {MockERC20} from "./mocks/MockERC20.sol";
 

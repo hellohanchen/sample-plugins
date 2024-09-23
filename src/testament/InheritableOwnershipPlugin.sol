@@ -7,9 +7,11 @@ import {
     ManifestAssociatedFunction,
     PluginManifest,
     PluginMetadata,
-    SelectorPermission
+    SelectorPermission,
+    ManifestExecutionHook
 } from "modular-account-libs/interfaces/IPlugin.sol";
 import {IStandardExecutor} from "modular-account-libs/interfaces/IStandardExecutor.sol";
+import {IPluginExecutor} from "modular-account-libs/interfaces/IPluginExecutor.sol";
 import {BasePlugin} from "modular-account-libs/plugins/BasePlugin.sol";
 import {SingleOwnerPlugin} from "erc6900/reference-implementation/src/plugins/owner/SingleOwnerPlugin.sol";
 import {ISingleOwnerPlugin} from "erc6900/reference-implementation/src/plugins/owner/ISingleOwnerPlugin.sol";
@@ -36,6 +38,15 @@ contract InheritableOwnershipPlugin is BasePlugin, ITestamentPlugin {
 
     bytes4 public constant TRANSFER_OWNERSHIP_SELECTOR = ISingleOwnerPlugin.transferOwnership.selector;
 
+    // ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+    // ┃    Plugin view functions    ┃
+    // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+    /// @inheritdoc ITestamentPlugin
+    function inheritorsOf(address account) external view returns (address[] memory) {
+        return _inheritorsOf(account);
+    }
+
     // ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
     // ┃    Execution functions    ┃
     // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
@@ -47,7 +58,7 @@ contract InheritableOwnershipPlugin is BasePlugin, ITestamentPlugin {
 
     /// @inheritdoc ITestamentPlugin
     function inheritors() external view returns (address[] memory) {
-        return inheritorsOf(msg.sender);
+        return _inheritorsOf(msg.sender);
     }
 
     function refreshActiveTime() public {
@@ -59,7 +70,7 @@ contract InheritableOwnershipPlugin is BasePlugin, ITestamentPlugin {
     }
 
     function unsetInheritor() public {
-        _setInheritor(address(0), 0);
+        _unsetInheritor();
     }
 
     // ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -67,31 +78,13 @@ contract InheritableOwnershipPlugin is BasePlugin, ITestamentPlugin {
     // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
     /// @inheritdoc BasePlugin
-    function postExecutionHook(uint8 functionId, bytes calldata) external pure override {
+    function postExecutionHook(uint8 functionId, bytes calldata) external override {
         if (functionId == uint8(FunctionId.POST_EXECUTION_HOOK)) {
             _refreshActiveTime();
             return;
         }
 
-        revert NotImplemented();
-    }
-
-    // ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-    // ┃    Plugin view functions    ┃
-    // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-
-    /// @inheritdoc ITestamentPlugin
-    function inheritorsOf(address account) external view returns (address[] memory) {
-        address inheritor = _inheritors[account];
-
-        if (inheritor == address(0)) {
-            address[] memory ihs = new address[](0);
-            return ihs;
-        }
-
-        address[] memory ihs = new address[](1);
-        ihs[0] = inheritor;
-        return ihs;
+        revert NotImplemented(msg.sig, functionId);
     }
 
     // ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -100,18 +93,18 @@ contract InheritableOwnershipPlugin is BasePlugin, ITestamentPlugin {
 
     /// @inheritdoc BasePlugin
     function onInstall(bytes calldata data) external override {
-        (inheritor, idleTimeLimit) = abi.decode(data, (address, uint256));
+        (address inheritor, uint256 idleTimeLimit) = abi.decode(data, (address, uint256));
 
         if (inheritor == address(0) || idleTimeLimit == 0) {
             revert InvalidInheritor();
         }
 
-        _setInheritor(inheritorAddress, idleTimeLimit);
+        _setInheritor(inheritor, idleTimeLimit);
     }
 
     /// @inheritdoc BasePlugin
     function onUninstall(bytes calldata) external override {
-        unsetInheritor();
+        _unsetInheritor();
     }
 
     /// @inheritdoc BasePlugin
@@ -119,10 +112,10 @@ contract InheritableOwnershipPlugin is BasePlugin, ITestamentPlugin {
         PluginManifest memory manifest;
 
         // depends on ISingleOwnerPlugin
-        manifest.dependencyInterfaceIds = new bytes[](1);
+        manifest.dependencyInterfaceIds = new bytes4[](1);
         manifest.dependencyInterfaceIds[0] = type(ISingleOwnerPlugin).interfaceId;
 
-        manifest.permittedExecutionSelectors = new bytes[](1);
+        manifest.permittedExecutionSelectors = new bytes4[](1);
         manifest.permittedExecutionSelectors[0] = TRANSFER_OWNERSHIP_SELECTOR;
 
         // Execution functions defined in this plugin to be installed on the MSCA.
@@ -166,7 +159,7 @@ contract InheritableOwnershipPlugin is BasePlugin, ITestamentPlugin {
         ManifestFunction memory ownerOrSelfRuntimeValidationFunction = ManifestFunction({
             functionType: ManifestAssociatedFunctionType.DEPENDENCY,
             functionId: 0, // Unused.
-            dependencyIndex: 0 // Used as first index.
+            dependencyIndex: 1 // Used as first index.
         });
         manifest.runtimeValidationFunctions = new ManifestAssociatedFunction[](5);
         manifest.runtimeValidationFunctions[0] = ManifestAssociatedFunction({
@@ -194,6 +187,11 @@ contract InheritableOwnershipPlugin is BasePlugin, ITestamentPlugin {
         manifest.executionHooks = new ManifestExecutionHook[](2);
         manifest.executionHooks[0] = ManifestExecutionHook({
             executionSelector: IStandardExecutor.execute.selector,
+            preExecHook: ManifestFunction({
+                functionType: ManifestAssociatedFunctionType.NONE,
+                functionId: 0, // Unused.
+                dependencyIndex: 0 // Unused.
+            }),
             postExecHook: ManifestFunction({
                 functionType: ManifestAssociatedFunctionType.SELF,
                 functionId: uint8(FunctionId.POST_EXECUTION_HOOK),
@@ -202,12 +200,21 @@ contract InheritableOwnershipPlugin is BasePlugin, ITestamentPlugin {
         });
         manifest.executionHooks[1] = ManifestExecutionHook({
             executionSelector: IStandardExecutor.executeBatch.selector,
+            preExecHook: ManifestFunction({
+                functionType: ManifestAssociatedFunctionType.NONE,
+                functionId: 0, // Unused.
+                dependencyIndex: 0 // Unused.
+            }),
             postExecHook: ManifestFunction({
                 functionType: ManifestAssociatedFunctionType.SELF,
                 functionId: uint8(FunctionId.POST_EXECUTION_HOOK),
                 dependencyIndex: 0 // Unused.
             })
         });
+
+        manifest.dependencyInterfaceIds = new bytes4[](2);
+        manifest.dependencyInterfaceIds[0] = type(ISingleOwnerPlugin).interfaceId;
+        manifest.dependencyInterfaceIds[1] = type(ISingleOwnerPlugin).interfaceId;
 
         return manifest;
     }
@@ -245,6 +252,14 @@ contract InheritableOwnershipPlugin is BasePlugin, ITestamentPlugin {
     // ┃    Internal / Private functions    ┃
     // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
+    function _inheritorsOf(address account) internal view returns (address[] memory) {
+        address inheritor = _inheritors[account];
+
+        address[] memory ihs = new address[](1);
+        ihs[0] = inheritor;
+        return ihs;
+    }
+
     function _refreshActiveTime() internal {
         if (_inheritors[msg.sender] != address(0)) {
             _lastActiveTimestamps[msg.sender] = block.timestamp;
@@ -259,7 +274,7 @@ contract InheritableOwnershipPlugin is BasePlugin, ITestamentPlugin {
         _idleTimeLimits[account] = idleTimeLimit;
 
         if (previousInheritor != address(0)) {
-            emit InheritorRemoved(account, inheritor);
+            emit InheritorRemoved(account, previousInheritor);
         }
         if (inheritor != address(0)) {
             _refreshActiveTime();
@@ -267,22 +282,26 @@ contract InheritableOwnershipPlugin is BasePlugin, ITestamentPlugin {
         }
     }
 
-    function _executeTestament() internal {
-        address[] inheritors = inheritors();
+    function _unsetInheritor() internal {
+        _setInheritor(address(0), 0);
+    }
 
-        if (inheritors.length == 0) {
+    function _executeTestament() internal {
+        address account = msg.sender;
+        address inheritor = _inheritors[account];
+
+        if (inheritor == address(0)) {
             revert InvalidInheritor();
         }
 
-        address account = msg.sender;
         if (block.timestamp < _lastActiveTimestamps[account] + _idleTimeLimits[account]) {
             revert NotExecutable();
         }
 
-        address inheritor = inheritors[0];
         bytes memory data = abi.encodeWithSelector(TRANSFER_OWNERSHIP_SELECTOR, inheritor);
         IPluginExecutor(account).executeFromPlugin(data);
 
+        _unsetInheritor();
         emit TestamentExecuted(account, inheritor);
     }
 }

@@ -28,9 +28,9 @@ interface ITestamentPlugin {
 
     /// @notice Get the inheritors of the account.
     /// @return The inheritors of the account.
-    function inheritors() external view returns (address[]);
+    function inheritors() external view returns (address[] memory);
 
     /// @notice Get the inheritors of `account`.
     /// @return The inheritors of the account.
-    function inheritorsOf(address account) external view returns (address[]);
+    function inheritorsOf(address account) external view returns (address[] memory);
 }
